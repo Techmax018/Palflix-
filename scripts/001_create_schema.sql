@@ -24,9 +24,13 @@ create table if not exists public.profiles (
 );
 
 alter table public.profiles enable row level security;
+drop policy if exists "profiles_select_all" on public.profiles;
 create policy "profiles_select_all" on public.profiles for select using (true);
+drop policy if exists "profiles_insert_own" on public.profiles;
 create policy "profiles_insert_own" on public.profiles for insert with check (auth.uid() = id);
+drop policy if exists "profiles_update_own" on public.profiles;
 create policy "profiles_update_own" on public.profiles for update using (auth.uid() = id);
+drop policy if exists "profiles_delete_own" on public.profiles;
 create policy "profiles_delete_own" on public.profiles for delete using (auth.uid() = id);
 
 -- 2. Videos table
@@ -53,11 +57,15 @@ create table if not exists public.videos (
 );
 
 alter table public.videos enable row level security;
+drop policy if exists "videos_select_public" on public.videos;
 create policy "videos_select_public" on public.videos for select using (
   (status = 'active' and is_private = false) or (auth.uid() = user_id)
 );
+drop policy if exists "videos_insert_own" on public.videos;
 create policy "videos_insert_own" on public.videos for insert with check (auth.uid() = user_id);
+drop policy if exists "videos_update_own" on public.videos;
 create policy "videos_update_own" on public.videos for update using (auth.uid() = user_id);
+drop policy if exists "videos_delete_own" on public.videos;
 create policy "videos_delete_own" on public.videos for delete using (auth.uid() = user_id);
 
 -- 3. Video Likes
@@ -70,8 +78,11 @@ create table if not exists public.video_likes (
 );
 
 alter table public.video_likes enable row level security;
+drop policy if exists "video_likes_select" on public.video_likes;
 create policy "video_likes_select" on public.video_likes for select using (true);
+drop policy if exists "video_likes_insert" on public.video_likes;
 create policy "video_likes_insert" on public.video_likes for insert with check (auth.uid() = user_id);
+drop policy if exists "video_likes_delete" on public.video_likes;
 create policy "video_likes_delete" on public.video_likes for delete using (auth.uid() = user_id);
 
 -- 4. Comments
@@ -86,9 +97,13 @@ create table if not exists public.comments (
 );
 
 alter table public.comments enable row level security;
+drop policy if exists "comments_select" on public.comments;
 create policy "comments_select" on public.comments for select using (true);
+drop policy if exists "comments_insert" on public.comments;
 create policy "comments_insert" on public.comments for insert with check (auth.uid() = user_id);
+drop policy if exists "comments_update_own" on public.comments;
 create policy "comments_update_own" on public.comments for update using (auth.uid() = user_id);
+drop policy if exists "comments_delete_own" on public.comments;
 create policy "comments_delete_own" on public.comments for delete using (auth.uid() = user_id);
 
 -- 5. Follows
@@ -101,8 +116,11 @@ create table if not exists public.follows (
 );
 
 alter table public.follows enable row level security;
+drop policy if exists "follows_select" on public.follows;
 create policy "follows_select" on public.follows for select using (true);
+drop policy if exists "follows_insert" on public.follows;
 create policy "follows_insert" on public.follows for insert with check (auth.uid() = follower_id);
+drop policy if exists "follows_delete" on public.follows;
 create policy "follows_delete" on public.follows for delete using (auth.uid() = follower_id);
 
 -- 6. Live Streams
@@ -121,8 +139,11 @@ create table if not exists public.live_streams (
 );
 
 alter table public.live_streams enable row level security;
+drop policy if exists "live_streams_select" on public.live_streams;
 create policy "live_streams_select" on public.live_streams for select using (true);
+drop policy if exists "live_streams_insert" on public.live_streams;
 create policy "live_streams_insert" on public.live_streams for insert with check (auth.uid() = user_id);
+drop policy if exists "live_streams_update_own" on public.live_streams;
 create policy "live_streams_update_own" on public.live_streams for update using (auth.uid() = user_id);
 
 -- 7. Gifts / Tips
@@ -139,7 +160,9 @@ create table if not exists public.gifts (
 );
 
 alter table public.gifts enable row level security;
+drop policy if exists "gifts_select_own" on public.gifts;
 create policy "gifts_select_own" on public.gifts for select using (auth.uid() = sender_id or auth.uid() = receiver_id);
+drop policy if exists "gifts_insert" on public.gifts;
 create policy "gifts_insert" on public.gifts for insert with check (auth.uid() = sender_id);
 
 -- 8. Notifications
@@ -155,7 +178,9 @@ create table if not exists public.notifications (
 );
 
 alter table public.notifications enable row level security;
+drop policy if exists "notifications_select_own" on public.notifications;
 create policy "notifications_select_own" on public.notifications for select using (auth.uid() = user_id);
+drop policy if exists "notifications_update_own" on public.notifications;
 create policy "notifications_update_own" on public.notifications for update using (auth.uid() = user_id);
 
 -- 9. Reports (content moderation)
@@ -172,7 +197,9 @@ create table if not exists public.reports (
 );
 
 alter table public.reports enable row level security;
+drop policy if exists "reports_insert" on public.reports;
 create policy "reports_insert" on public.reports for insert with check (auth.uid() = reporter_id);
+drop policy if exists "reports_select_own" on public.reports;
 create policy "reports_select_own" on public.reports for select using (auth.uid() = reporter_id);
 
 -- 10. Auto-create profile trigger
@@ -205,22 +232,29 @@ create trigger on_auth_user_created
   for each row
   execute function public.handle_new_user();
 
--- Create storage bucket for videos
+-- Create storage buckets
 insert into storage.buckets (id, name, public) values ('videos', 'videos', true) on conflict (id) do nothing;
 insert into storage.buckets (id, name, public) values ('avatars', 'avatars', true) on conflict (id) do nothing;
 insert into storage.buckets (id, name, public) values ('thumbnails', 'thumbnails', true) on conflict (id) do nothing;
 
--- Storage policies for videos bucket
+-- Storage policies (drop first to avoid conflicts)
+drop policy if exists "videos_upload" on storage.objects;
 create policy "videos_upload" on storage.objects for insert with check (bucket_id = 'videos' and auth.role() = 'authenticated');
+drop policy if exists "videos_select" on storage.objects;
 create policy "videos_select" on storage.objects for select using (bucket_id = 'videos');
+drop policy if exists "videos_delete" on storage.objects;
 create policy "videos_delete" on storage.objects for delete using (bucket_id = 'videos' and auth.uid()::text = (storage.foldername(name))[1]);
 
--- Storage policies for avatars bucket
+drop policy if exists "avatars_upload" on storage.objects;
 create policy "avatars_upload" on storage.objects for insert with check (bucket_id = 'avatars' and auth.role() = 'authenticated');
+drop policy if exists "avatars_select" on storage.objects;
 create policy "avatars_select" on storage.objects for select using (bucket_id = 'avatars');
+drop policy if exists "avatars_delete" on storage.objects;
 create policy "avatars_delete" on storage.objects for delete using (bucket_id = 'avatars' and auth.uid()::text = (storage.foldername(name))[1]);
 
--- Storage policies for thumbnails bucket
+drop policy if exists "thumbnails_upload" on storage.objects;
 create policy "thumbnails_upload" on storage.objects for insert with check (bucket_id = 'thumbnails' and auth.role() = 'authenticated');
+drop policy if exists "thumbnails_select" on storage.objects;
 create policy "thumbnails_select" on storage.objects for select using (bucket_id = 'thumbnails');
+drop policy if exists "thumbnails_delete" on storage.objects;
 create policy "thumbnails_delete" on storage.objects for delete using (bucket_id = 'thumbnails' and auth.uid()::text = (storage.foldername(name))[1]);
