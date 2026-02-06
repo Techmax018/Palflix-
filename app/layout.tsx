@@ -33,7 +33,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className="font-sans antialiased">
+      <body className={`${_inter.variable} ${_spaceGrotesk.variable} font-sans antialiased`}>
         {children}
         <Toaster
           position="top-center"

@@ -51,6 +51,7 @@ export async function signup(formData: FormData) {
         username,
         display_name: displayName,
         date_of_birth: dateOfBirth,
+        age_verified: true,
       },
     },
   });
