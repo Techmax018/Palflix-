@@ -1,29 +1,25 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
 
 export async function createClient() {
-  const cookieStore = await cookies()
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // createServerClient handles the headers and cookie logic automatically
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          try {
-            // This is the CRITICAL part: it writes the session back to the browser
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          } catch {
-            // This can be ignored if the client is called from a Server Component
-          }
-        },
-      },
-    }
-  )
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error("Missing Supabase environment variables");
+  }
+
+  const cookieStore = await cookies();
+  const authCookies = cookieStore.getAll().filter((c) => c.name.startsWith("sb-"));
+  const accessToken = authCookies.find((c) => c.name.includes("auth-token"))?.value;
+
+  const client = createSupabaseClient(supabaseUrl, supabaseAnonKey, {
+    global: {
+      headers: accessToken
+        ? { Authorization: `Bearer ${accessToken}` }
+        : {},
+    },
+  });
+
+  return client;
 }
