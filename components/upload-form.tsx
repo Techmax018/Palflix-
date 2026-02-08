@@ -1,8 +1,6 @@
 "use client";
 
-import React from "react"
-
-import { useState, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Upload, Film, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,9 +12,11 @@ import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-export function UploadForm() {
+// Receive userId as a prop from the Server Component
+export function UploadForm({ userId }: { userId: string }) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [title, setTitle] = useState("");
@@ -48,8 +48,15 @@ export function UploadForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Safety check: ensure we have a file and a userId
     if (!file) {
       toast.error("Please select a video file");
+      return;
+    }
+
+    if (!userId) {
+      toast.error("Authentication error. Please refresh and try again.");
       return;
     }
 
@@ -58,18 +65,10 @@ export function UploadForm() {
 
     try {
       const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        toast.error("You must be logged in to upload");
-        return;
-      }
-
-      // Upload video to Supabase Storage
+      
+      // Upload video to Supabase Storage using the passed userId
       const fileExt = file.name.split(".").pop();
-      const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+      const filePath = `${userId}/${Date.now()}.${fileExt}`;
 
       setProgress(30);
 
@@ -85,9 +84,9 @@ export function UploadForm() {
       setProgress(70);
 
       // Get public URL
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("videos").getPublicUrl(uploadData.path);
+      const { data: { publicUrl } } = supabase.storage
+        .from("videos")
+        .getPublicUrl(uploadData.path);
 
       // Create video record
       const tagArray = tags
@@ -96,8 +95,8 @@ export function UploadForm() {
         .filter(Boolean);
 
       const { error: insertError } = await supabase.from("videos").insert({
-        user_id: user.id,
-        title: title || null,
+        user_id: userId, // Use userId from props
+        title: title || "Untitled Video",
         description: description || null,
         video_url: publicUrl,
         is_private: isPrivate,
@@ -110,12 +109,12 @@ export function UploadForm() {
 
       setProgress(100);
       toast.success("Video uploaded successfully!");
+      
       router.push("/feed");
       router.refresh();
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : "Upload failed";
-      toast.error(message);
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      toast.error(error.message || "Upload failed");
     } finally {
       setUploading(false);
       setProgress(0);
@@ -126,10 +125,11 @@ export function UploadForm() {
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
       {/* Drop zone */}
       <div
-        onClick={() => fileInputRef.current?.click()}
+        onClick={() => !uploading && fileInputRef.current?.click()}
         className={cn(
           "relative flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-card p-8 transition-colors hover:border-primary/50",
-          file && "border-primary/30"
+          file && "border-primary/30",
+          uploading && "cursor-not-allowed opacity-50"
         )}
       >
         <input
@@ -138,6 +138,7 @@ export function UploadForm() {
           accept="video/*"
           onChange={handleFileSelect}
           className="hidden"
+          disabled={uploading}
         />
 
         {preview ? (
@@ -148,17 +149,19 @@ export function UploadForm() {
               muted
               playsInline
             />
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setFile(null);
-                setPreview(null);
-              }}
-              className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-foreground hover:bg-black/80"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            {!uploading && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFile(null);
+                  setPreview(null);
+                }}
+                className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-foreground hover:bg-black/80"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
             <p className="mt-2 text-center text-xs text-muted-foreground">
               {file?.name} ({(file!.size / (1024 * 1024)).toFixed(1)} MB)
             </p>
@@ -168,12 +171,8 @@ export function UploadForm() {
             <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-secondary">
               <Upload className="h-6 w-6 text-muted-foreground" />
             </div>
-            <p className="text-sm font-medium text-foreground">
-              Tap to select a video
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              MP4, MOV, or WebM. Max 500MB.
-            </p>
+            <p className="text-sm font-medium text-foreground">Tap to select a video</p>
+            <p className="mt-1 text-xs text-muted-foreground">MP4, MOV, or WebM. Max 500MB.</p>
           </>
         )}
       </div>
@@ -188,6 +187,7 @@ export function UploadForm() {
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Give your video a title"
             className="bg-card"
+            disabled={uploading}
           />
         </div>
 
@@ -200,6 +200,7 @@ export function UploadForm() {
             placeholder="Tell viewers about your video..."
             rows={3}
             className="bg-card resize-none"
+            disabled={uploading}
           />
         </div>
 
@@ -211,6 +212,7 @@ export function UploadForm() {
             onChange={(e) => setTags(e.target.value)}
             placeholder="comedy, vlog, music (comma separated)"
             className="bg-card"
+            disabled={uploading}
           />
         </div>
       </div>
@@ -220,25 +222,24 @@ export function UploadForm() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-foreground">Private</p>
-            <p className="text-xs text-muted-foreground">
-              Only you can see this video
-            </p>
+            <p className="text-xs text-muted-foreground">Only you can see this video</p>
           </div>
-          <Switch checked={isPrivate} onCheckedChange={setIsPrivate} />
+          <Switch 
+            checked={isPrivate} 
+            onCheckedChange={setIsPrivate} 
+            disabled={uploading} 
+          />
         </div>
 
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-foreground">
-              Subscribers Only
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Only your subscribers can view
-            </p>
+            <p className="text-sm font-medium text-foreground">Subscribers Only</p>
+            <p className="text-xs text-muted-foreground">Only your subscribers can view</p>
           </div>
           <Switch
             checked={isSubscribersOnly}
             onCheckedChange={setIsSubscribersOnly}
+            disabled={uploading}
           />
         </div>
       </div>
