@@ -1,4 +1,6 @@
-﻿import { LiveHub } from "@/components/live-hub";
+﻿export const dynamic = "force-dynamic";
+
+import { LiveHub } from "@/components/live-hub";
 import { query } from "@/lib/db";
 
 export default async function LivePage() {

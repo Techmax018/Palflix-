@@ -1,4 +1,6 @@
-﻿import { DiscoverGrid } from "@/components/discover-grid";
+﻿export const dynamic = "force-dynamic";
+
+import { DiscoverGrid } from "@/components/discover-grid";
 import { query } from "@/lib/db";
 
 export default async function DiscoverPage() {

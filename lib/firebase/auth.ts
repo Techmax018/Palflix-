@@ -8,7 +8,7 @@ import {
   GoogleAuthProvider,
   type User,
 } from "firebase/auth";
-import { auth } from "./client";
+import { getFirebaseAuth } from "./client";
 
 const googleProvider = new GoogleAuthProvider();
 
@@ -21,6 +21,7 @@ function clearSessionCookie() {
 }
 
 export async function signUp(email: string, password: string, displayName: string) {
+  const auth = getFirebaseAuth();
   const credential = await createUserWithEmailAndPassword(auth, email, password);
   await updateProfile(credential.user, { displayName });
   const token = await credential.user.getIdToken();
@@ -29,6 +30,7 @@ export async function signUp(email: string, password: string, displayName: strin
 }
 
 export async function signIn(email: string, password: string) {
+  const auth = getFirebaseAuth();
   const credential = await signInWithEmailAndPassword(auth, email, password);
   const token = await credential.user.getIdToken();
   setSessionCookie(token);
@@ -37,20 +39,21 @@ export async function signIn(email: string, password: string) {
 
 export async function logOut() {
   clearSessionCookie();
-  await signOut(auth);
+  await signOut(getFirebaseAuth());
 }
 
 export function onAuthChange(callback: (user: User | null) => void) {
-  return onAuthStateChanged(auth, callback);
+  return onAuthStateChanged(getFirebaseAuth(), callback);
 }
 
 export async function getIdToken(): Promise<string | null> {
-  const user = auth.currentUser;
+  const user = getFirebaseAuth().currentUser;
   if (!user) return null;
   return user.getIdToken();
 }
 
 export async function signInWithGoogle() {
+  const auth = getFirebaseAuth();
   const credential = await signInWithPopup(auth, googleProvider);
   const token = await credential.user.getIdToken();
   setSessionCookie(token);

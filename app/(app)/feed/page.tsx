@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { VideoFeed } from "@/components/video-feed";
 import { query } from "@/lib/db";
 
