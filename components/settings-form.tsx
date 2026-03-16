@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/lib/firebase/auth-context";
 import { toast } from "sonner";
 import { Loader2, Shield, Eye, Bell, User } from "lucide-react";
 
@@ -31,6 +31,7 @@ export function SettingsForm({
   email: string;
 }) {
   const router = useRouter();
+  const { user } = useAuth();
   const [saving, setSaving] = useState(false);
   const [username, setUsername] = useState(profile?.username || "");
   const [displayName, setDisplayName] = useState(profile?.display_name || "");
@@ -45,30 +46,24 @@ export function SettingsForm({
   const handleSave = async () => {
     setSaving(true);
     try {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
-
-      const { error } = await supabase
-        .from("profiles")
-        .update({
+      const res = await fetch("/api/profiles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: user.uid,
           username,
           display_name: displayName,
           bio,
           profile_visible: profileVisible,
           two_factor_enabled: twoFactor,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", user.id);
-
-      if (error) throw error;
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to save");
       toast.success("Settings saved");
       router.refresh();
     } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : "Failed to save";
+      const message = error instanceof Error ? error.message : "Failed to save";
       toast.error(message);
     } finally {
       setSaving(false);

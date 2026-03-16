@@ -1,54 +1,26 @@
-import { createClient } from "@/lib/supabase/server";
 import { VideoFeed } from "@/components/video-feed";
+import { query } from "@/lib/db";
 
 export default async function FeedPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const videos = await query(
+    `SELECT v.*, p.username, p.display_name, p.avatar_url, p.is_verified
+     FROM videos v
+     JOIN profiles p ON p.id = v.user_id
+     WHERE v.status = 'active' AND v.is_private = false
+     ORDER BY v.created_at DESC
+     LIMIT 20`
+  ).catch(() => []);
 
-  // Fetch active videos with creator profiles
-  const { data: videos } = await supabase
-    .from("videos")
-    .select(
-      `
-      id, title, description, video_url, thumbnail_url, 
-      view_count, like_count, comment_count, share_count, tags, user_id,
-      profiles!videos_user_id_fkey (
-        username, display_name, avatar_url, is_verified
-      )
-    `
-    )
-    .eq("status", "active")
-    .eq("is_private", false)
-    .order("created_at", { ascending: false })
-    .limit(20);
-
-  // Get user's likes
-  let likedVideoIds: string[] = [];
-  if (user) {
-    const { data: likes } = await supabase
-      .from("video_likes")
-      .select("video_id")
-      .eq("user_id", user.id);
-    likedVideoIds = likes?.map((l) => l.video_id) || [];
-  }
-
-  // Get user's follows
-  let followingIds: string[] = [];
-  if (user) {
-    const { data: follows } = await supabase
-      .from("follows")
-      .select("following_id")
-      .eq("follower_id", user.id);
-    followingIds = follows?.map((f) => f.following_id) || [];
-  }
-
-  const feedVideos = (videos || []).map((video) => ({
-    ...video,
-    profiles: Array.isArray(video.profiles) ? video.profiles[0] : video.profiles,
-    user_has_liked: likedVideoIds.includes(video.id),
-    user_is_following: followingIds.includes(video.user_id),
+  const feedVideos = videos.map((v) => ({
+    ...v,
+    profiles: {
+      username: v.username,
+      display_name: v.display_name,
+      avatar_url: v.avatar_url,
+      is_verified: v.is_verified,
+    },
+    user_has_liked: false,
+    user_is_following: false,
   }));
 
   return <VideoFeed initialVideos={feedVideos} />;

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react"
+import React, { useEffect, useState } from "react"
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -24,15 +24,27 @@ const navItems = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isFullscreen = pathname === "/feed";
+  const [navHidden, setNavHidden] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      setNavHidden((e as CustomEvent).detail.open);
+    };
+    window.addEventListener("comments-drawer", handler);
+    return () => window.removeEventListener("comments-drawer", handler);
+  }, []);
 
   return (
     <div className="relative flex h-dvh flex-col bg-background">
-      <main className={cn("flex-1 overflow-hidden", !isFullscreen && "pb-16")}>
+      <main className={cn("flex-1 overflow-y-auto", !isFullscreen && "pb-16")}>
         {children}
       </main>
 
       {/* Bottom Navigation */}
-      <nav className="fixed inset-x-0 bottom-0 z-50 flex h-16 items-center justify-around border-t border-border bg-background/90 backdrop-blur-xl">
+      <nav className={cn(
+        "fixed inset-x-0 bottom-0 z-50 flex h-16 items-center justify-around border-t border-border bg-background/90 backdrop-blur-xl transition-transform duration-300",
+        navHidden && "translate-y-full"
+      )}>
         {navItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
           const isCreate = item.href === "/upload";

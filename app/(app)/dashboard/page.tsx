@@ -1,58 +1,30 @@
-import { createClient } from "@/lib/supabase/server";
+﻿"use client";
+
+import { useEffect, useState } from "react";
+import { useAuth } from "@/lib/firebase/auth-context";
 import { DashboardContent } from "@/components/dashboard-content";
 
-export default async function DashboardPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export default function DashboardPage() {
+  const { user, loading } = useAuth();
+  const [profile, setProfile] = useState(null);
+  const [videos, setVideos] = useState<any[]>([]);
 
-  if (!user) return null;
+  useEffect(() => {
+    if (!user) return;
+    fetch(`/api/profiles?uid=${user.uid}`).then((r) => r.json()).then(setProfile);
+    fetch(`/api/videos/user?uid=${user.uid}`).then((r) => r.json()).then(setVideos);
+  }, [user]);
 
-  // Fetch user profile
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single();
+  if (loading) return null;
 
-  // Fetch user's videos
-  const { data: videos } = await supabase
-    .from("videos")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
+  const stats = {
+    totalViews: videos.reduce((s, v) => s + (v.view_count || 0), 0),
+    totalLikes: videos.reduce((s, v) => s + (v.like_count || 0), 0),
+    totalComments: videos.reduce((s, v) => s + (v.comment_count || 0), 0),
+    totalEarnings: 0,
+    followerCount: (profile as any)?.follower_count || 0,
+    videoCount: videos.length,
+  };
 
-  // Fetch gifts received
-  const { data: gifts } = await supabase
-    .from("gifts")
-    .select("amount, created_at")
-    .eq("receiver_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(50);
-
-  // Calculate stats
-  const totalViews =
-    videos?.reduce((sum, v) => sum + (v.view_count || 0), 0) || 0;
-  const totalLikes =
-    videos?.reduce((sum, v) => sum + (v.like_count || 0), 0) || 0;
-  const totalComments =
-    videos?.reduce((sum, v) => sum + (v.comment_count || 0), 0) || 0;
-  const totalEarnings =
-    gifts?.reduce((sum, g) => sum + Number(g.amount || 0), 0) || 0;
-
-  return (
-    <DashboardContent
-      profile={profile}
-      videos={videos || []}
-      stats={{
-        totalViews,
-        totalLikes,
-        totalComments,
-        totalEarnings,
-        followerCount: profile?.follower_count || 0,
-        videoCount: videos?.length || 0,
-      }}
-    />
-  );
+  return <DashboardContent profile={profile} videos={videos} stats={stats} />;
 }

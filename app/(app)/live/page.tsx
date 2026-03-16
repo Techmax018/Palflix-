@@ -1,23 +1,15 @@
-import { createClient } from "@/lib/supabase/server";
-import { LiveHub } from "@/components/live-hub";
+﻿import { LiveHub } from "@/components/live-hub";
+import { query } from "@/lib/db";
 
 export default async function LivePage() {
-  const supabase = await createClient();
+  const streams = await query(
+    `SELECT s.*, p.username, p.display_name, p.avatar_url, p.is_verified
+     FROM live_streams s
+     JOIN profiles p ON p.id = s.user_id
+     WHERE s.status IN ('live', 'scheduled')
+     ORDER BY s.status ASC, s.viewer_count DESC
+     LIMIT 20`
+  ).catch(() => []);
 
-  const { data: streams } = await supabase
-    .from("live_streams")
-    .select(
-      `
-      id, title, description, thumbnail_url, status, viewer_count, started_at, user_id,
-      profiles!live_streams_user_id_fkey (
-        username, display_name, avatar_url, is_verified
-      )
-    `
-    )
-    .in("status", ["live", "scheduled"])
-    .order("status", { ascending: true })
-    .order("viewer_count", { ascending: false })
-    .limit(20);
-
-  return <LiveHub streams={streams || []} />;
+  return <LiveHub streams={streams} />;
 }

@@ -2,6 +2,7 @@ import React from "react"
 import type { Metadata, Viewport } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import { Toaster } from "sonner";
+import { AuthProvider } from "@/lib/firebase/auth-context";
 
 import "./globals.css";
 
@@ -34,18 +35,20 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${_inter.variable} ${_spaceGrotesk.variable} font-sans antialiased`}>
-        {children}
-        <Toaster
-          position="top-center"
-          theme="dark"
-          toastOptions={{
-            style: {
-              background: "hsl(0 0% 7%)",
-              border: "1px solid hsl(0 0% 15%)",
-              color: "hsl(0 0% 95%)",
-            },
-          }}
-        />
+        <AuthProvider>
+          {children}
+          <Toaster
+            position="top-center"
+            theme="dark"
+            toastOptions={{
+              style: {
+                background: "hsl(0 0% 7%)",
+                border: "1px solid hsl(0 0% 15%)",
+                color: "hsl(0 0% 95%)",
+              },
+            }}
+          />
+        </AuthProvider>
       </body>
     </html>
   );

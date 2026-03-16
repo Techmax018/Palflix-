@@ -131,6 +131,7 @@ export function VideoFeed({ initialVideos }: VideoFeedProps) {
             <div className="absolute bottom-32 right-3 z-20">
               <VideoActions
                 videoId={video.id}
+                videoUrl={video.video_url}
                 initialLikeCount={video.like_count}
                 initialCommentCount={video.comment_count}
                 initialShareCount={video.share_count}
