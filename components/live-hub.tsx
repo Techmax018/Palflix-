@@ -93,7 +93,7 @@ export function LiveHub({ streams }: { streams: StreamData[] }) {
             </p>
             <Button className="mt-6 gap-1.5 rounded-full font-semibold">
               <Zap className="h-4 w-4" />
-              Start Streaming
+              Coming soon...
             </Button>
           </div>
         )}
