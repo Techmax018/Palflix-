@@ -74,3 +74,10 @@ const SEOFooter = () => {
     </footer>
   );
 };
+export const metadata = {
+  openGraph: {
+    title: 'Palflix | Premium Mature Kenyan Content',
+    description: 'The #1 platform for exclusive Kenyan entertainment.',
+    images: ['/og-preview.jpg'], // Make sure this image is in your /public folder
+  },
+}
