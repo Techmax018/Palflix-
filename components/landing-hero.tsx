@@ -62,3 +62,15 @@ export function LandingHero() {
     </div>
   );
 }
+const SEOFooter = () => {
+  return (
+    <footer style={{ opacity: 0.2, fontSize: '10px', padding: '40px', color: '#d4af37' }}>
+      <h2>Palflix: The Home of Mature Kenyan Entertainment</h2>
+      <p>
+        Searching for the best **mature Kenyan content**? Palflix offers a premium 
+        short-form video experience for a **mature audience**. From **Nairobi's top creators** to exclusive **18+ entertainment**, we are the leading platform for **Kenyan viral videos**. 
+        Discover why everyone is switching to Palflix for their daily dose of **local mature talent**.
+      </p>
+    </footer>
+  );
+};
